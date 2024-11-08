@@ -1,0 +1,55 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      src_folder:
+        description: 'Folder to copy from'    # Descrizione del parametro di origine
+        required: true
+        default: 'source_folder'             # Valore predefinito
+      dest_folder:
+        description: 'Folder to copy to'      # Descrizione del parametro di destinazione
+        required: true
+        default: 'destination_folder'        # Valore predefinito
+
+jobs:
+  copy-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Copy files
+        run: |
+          base_path="flux-configs"       # Percorso di base per la cartella di origine
+          
+          # Percorsi completi unendo i percorsi base con i parametri dell'utente
+          src_folder="$base_path/${{ github.event.inputs.src_folder }}"
+          dest_folder="$base_path/${{ github.event.inputs.dest_folder }}"
+          zip_file="destination_backup.zip"       # Nome del file zip
+
+      - name: Zip and move destination folder content
+        run: |
+          # Comprimi il contenuto della cartella di destinazione in un file ZIP
+          zip -r "$zip_file" "backup"
+
+          # Sposta il file ZIP nella cartella base del repository
+          mv "$zip_file" .
+
+      - name: Clear destination folder
+        run: |
+          # Cancella il contenuto della cartella di destinazione
+          rm -rf "$dest_folder/*"
+
+      - name: Copy files
+        run: |
+          mkdir -p "$dest_folder"                # Crea la cartella di destinazione se non esiste
+          cp -r "$src_folder/." "$dest_folder/"  # Copia i file dalla sorgente alla destinazione
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$dest_folder/*" "$zip_file"
+          git commit -m "Copy files from $src_folder to $dest_folder and create backup"
+          git push
