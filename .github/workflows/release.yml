@@ -56,7 +56,7 @@ jobs:
           fi
 
           # Se il file ZIP è stato creato, spostalo nella cartella base del repository
-          mkdir -p "backup"   # Assicurati che la cartella di destinazione esista
+          mkdir -p "${{ steps.set_paths.outputs.zip_file_path }}"   # Assicurati che la cartella di destinazione esista
           if [ -f "${{ steps.set_paths.outputs.zip_file_name }}" ]; then
             mv "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.zip_file_path }}"
           fi
