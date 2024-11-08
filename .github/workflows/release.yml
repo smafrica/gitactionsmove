@@ -19,7 +19,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Copy files
+      - name: Set paths
+        id: set_paths
         run: |
           base_path="flux-configs"       # Percorso di base per la cartella di origine
           
@@ -33,7 +34,7 @@ jobs:
 
           # Nome dinamico del file zip che include i percorsi e il timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file="${src_folder_input//\//_}_${dest_folder_input//\//_}_$timestamp.zip" 
+          zip_file="${src_folder_input//\//_}_${dest_folder_input//\//_}_$timestamp.zip"
           echo "ZIP file name: $zip_file"
           
           # Usa GITHUB_OUTPUT per impostare le variabili di output
