@@ -44,6 +44,13 @@ jobs:
           echo "zip_file_path=$zip_file_path" >> $GITHUB_OUTPUT
           echo "zip_file_name=$zip_file_name" >> $GITHUB_OUTPUT
 
+          # TO DO
+          # STEP: CHECK PATH
+          # STEP: CHECK TAG (add input par)
+          # CHANGE src: calculate it only from dest
+          # QA from DEV
+          # PROD from QA
+          # inputs: tag, dest env, name (name for folder compising)
       - name: Zip and move destination folder content
         run: |
           mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"   # Assicurati che la cartella di destinazione esista
