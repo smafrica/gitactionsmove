@@ -33,7 +33,7 @@ jobs:
 
           # Nome dinamico del file zip che include i percorsi e il timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file="${$src_folder_input//\//_}_${$dest_folder_input//\//_}_$timestamp.zip"
+          zip_file="${src_folder_input//\//_}_${dest_folder_input//\//_}_$timestamp.zip" 
           echo "ZIP file name: $zip_file"
           
           # Usa GITHUB_OUTPUT per impostare le variabili di output
