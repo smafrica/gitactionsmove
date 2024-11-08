@@ -34,13 +34,15 @@ jobs:
 
           # Nome dinamico del file zip che include i percorsi e il timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file="${src_folder_input//\//_}_${dest_folder_input//\//_}_$timestamp.zip"
-          echo "ZIP file name: $zip_file"
+          zip_file_path="backup/${dest_folder_input//\//_}"
+          zip_file_name="${src_folder_input//\//_}_$timestamp.zip"
+          echo "ZIP file name: $zip_file_name"
           
           # Usa GITHUB_OUTPUT per impostare le variabili di output
           echo "src_folder=$src_folder" >> $GITHUB_OUTPUT
           echo "dest_folder=$dest_folder" >> $GITHUB_OUTPUT
-          echo "zip_file=$zip_file" >> $GITHUB_OUTPUT
+          echo "zip_file_path=$zip_file_path" >> $GITHUB_OUTPUT
+          echo "zip_file_name=$zip_file_name" >> $GITHUB_OUTPUT
 
       - name: Zip and move destination folder content
         run: |
@@ -48,15 +50,15 @@ jobs:
 
           # Comprimi il contenuto della cartella di destinazione solo se contiene file
           if [ "$(ls -A ${{ steps.set_paths.outputs.dest_folder }})" ]; then
-            zip -r "${{ steps.set_paths.outputs.zip_file }}" "${{ steps.set_paths.outputs.dest_folder }}"
+            zip -r "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.dest_folder }}"
           else
             echo "Destination folder is empty, skipping ZIP creation."
           fi
 
           # Se il file ZIP è stato creato, spostalo nella cartella base del repository
           mkdir -p "backup"   # Assicurati che la cartella di destinazione esista
-          if [ -f "${{ steps.set_paths.outputs.zip_file }}" ]; then
-            mv "${{ steps.set_paths.outputs.zip_file }}" ./backup
+          if [ -f "${{ steps.set_paths.outputs.zip_file_name }}" ]; then
+            mv "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.zip_file_path }}"
           fi
 
       - name: Clear destination folder
@@ -69,10 +71,19 @@ jobs:
           mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"                # Crea la cartella di destinazione se non esiste
           cp -r "${{ steps.set_paths.outputs.src_folder }}/." "${{ steps.set_paths.outputs.dest_folder }}/"  # Copia i file dalla sorgente alla destinazione
 
+      - name: Check if ZIP file exists
+        run: |
+          if [ -f "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}" ]; then
+            echo "ZIP file exists: "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}""
+          else
+            echo "ZIP file not found!"
+            exit 1
+          fi
+
       - name: Commit changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.set_paths.outputs.dest_folder }}/*" "${{ steps.set_paths.outputs.zip_file }}"
+          git add "${{ steps.set_paths.outputs.dest_folder }}/*" "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}"
           git commit -m "Copy files from ${{ steps.set_paths.outputs.src_folder }} to ${{ steps.set_paths.outputs.dest_folder }}, create backup, and clear old content"
           git push
