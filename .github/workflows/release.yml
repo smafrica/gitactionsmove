@@ -25,16 +25,31 @@ jobs:
           
           # Percorsi completi unendo i percorsi base con i parametri dell'utente
           src_folder="$base_path/${{ github.event.inputs.src_folder }}"
+          echo "src_folder: $src_folder"
           dest_folder="$base_path/${{ github.event.inputs.dest_folder }}"
-          zip_file="destination_backup.zip"       # Nome del file zip
+          echo "dest_folder: $dest_folder"
+          
+          # Nome dinamico del file zip che include i percorsi e il timestamp
+          timestamp=$(date +%Y%m%d%H%M%S)
+          zip_file="${base_src_path//\//_}_${base_dest_path//\//_}_$timestamp.zip"
+          echo "ZIP file name: $zip_file"
 
       - name: Zip and move destination folder content
         run: |
-          # Comprimi il contenuto della cartella di destinazione in un file ZIP
-          zip -r "$zip_file" "backup"
+          mkdir -p "$dest_folder"   # Assicurati che la cartella di destinazione esista
 
-          # Sposta il file ZIP nella cartella base del repository
-          mv "$zip_file" .
+          # Comprimi il contenuto della cartella di destinazione solo se contiene file
+          if [ "$(ls -A $dest_folder)" ]; then
+            zip -r "$zip_file" "$dest_folder"
+          else
+            echo "Destination folder is empty, skipping ZIP creation."
+          fi
+
+          # Se il file ZIP è stato creato, spostalo nella cartella "backup" presente a partire dalla base del repository
+          mkdir -p "backup"   # Assicurati che la cartella di destinazione esista
+          if [ -f "$zip_file" ]; then
+            mv "$zip_file" ./backup
+          fi
 
       - name: Clear destination folder
         run: |
