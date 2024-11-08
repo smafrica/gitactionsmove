@@ -28,12 +28,16 @@ jobs:
           echo "src_folder: $src_folder"
           dest_folder="$base_path/${{ github.event.inputs.dest_folder }}"
           echo "dest_folder: $dest_folder"
-          
+
           # Nome dinamico del file zip che include i percorsi e il timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file="${base_src_path//\//_}_${base_dest_path//\//_}_$timestamp.zip"
+          zip_file="${${{ github.event.inputs.src_folder }}//\//_}_${${{ github.event.inputs.dest_folder }}//\//_}_$timestamp.zip"
           echo "ZIP file name: $zip_file"
 
+          # Esporta le variabili per gli step successivi
+          echo "::set-output name=src_folder::$src_folder"
+          echo "::set-output name=dest_folder::$dest_folder"
+          echo "::set-output name=zip_file::$zip_file"
       - name: Zip and move destination folder content
         run: |
           mkdir -p "$dest_folder"   # Assicurati che la cartella di destinazione esista
