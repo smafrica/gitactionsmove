@@ -24,51 +24,54 @@ jobs:
           base_path="flux-configs"       # Percorso di base per la cartella di origine
           
           # Percorsi completi unendo i percorsi base con i parametri dell'utente
-          src_folder="$base_path/${{ github.event.inputs.src_folder }}"
+          src_folder_input="${{ github.event.inputs.src_folder }}"
+          src_folder="$base_path/$src_folder_input"
           echo "src_folder: $src_folder"
-          dest_folder="$base_path/${{ github.event.inputs.dest_folder }}"
+          dest_folder_input="${{ github.event.inputs.dest_folder }}"
+          dest_folder="$base_path/$dest_folder_input"
           echo "dest_folder: $dest_folder"
 
           # Nome dinamico del file zip che include i percorsi e il timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file="${${{ github.event.inputs.src_folder }}//\//_}_${${{ github.event.inputs.dest_folder }}//\//_}_$timestamp.zip"
+          zip_file="${$src_folder_input//\//_}_${$dest_folder_input//\//_}_$timestamp.zip"
           echo "ZIP file name: $zip_file"
+          
+          # Usa GITHUB_OUTPUT per impostare le variabili di output
+          echo "src_folder=$src_folder" >> $GITHUB_OUTPUT
+          echo "dest_folder=$dest_folder" >> $GITHUB_OUTPUT
+          echo "zip_file=$zip_file" >> $GITHUB_OUTPUT
 
-          # Esporta le variabili per gli step successivi
-          echo "::set-output name=src_folder::$src_folder"
-          echo "::set-output name=dest_folder::$dest_folder"
-          echo "::set-output name=zip_file::$zip_file"
       - name: Zip and move destination folder content
         run: |
-          mkdir -p "$dest_folder"   # Assicurati che la cartella di destinazione esista
+          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"   # Assicurati che la cartella di destinazione esista
 
           # Comprimi il contenuto della cartella di destinazione solo se contiene file
-          if [ "$(ls -A $dest_folder)" ]; then
-            zip -r "$zip_file" "$dest_folder"
+          if [ "$(ls -A ${{ steps.set_paths.outputs.dest_folder }})" ]; then
+            zip -r "${{ steps.set_paths.outputs.zip_file }}" "${{ steps.set_paths.outputs.dest_folder }}"
           else
             echo "Destination folder is empty, skipping ZIP creation."
           fi
 
-          # Se il file ZIP è stato creato, spostalo nella cartella "backup" presente a partire dalla base del repository
+          # Se il file ZIP è stato creato, spostalo nella cartella base del repository
           mkdir -p "backup"   # Assicurati che la cartella di destinazione esista
-          if [ -f "$zip_file" ]; then
-            mv "$zip_file" ./backup
+          if [ -f "${{ steps.set_paths.outputs.zip_file }}" ]; then
+            mv "${{ steps.set_paths.outputs.zip_file }}" ./backup
           fi
 
       - name: Clear destination folder
         run: |
           # Cancella il contenuto della cartella di destinazione
-          rm -rf "$dest_folder/*"
+          rm -rf "${{ steps.set_paths.outputs.dest_folder }}/*"
 
       - name: Copy files
         run: |
-          mkdir -p "$dest_folder"                # Crea la cartella di destinazione se non esiste
-          cp -r "$src_folder/." "$dest_folder/"  # Copia i file dalla sorgente alla destinazione
+          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"                # Crea la cartella di destinazione se non esiste
+          cp -r "${{ steps.set_paths.outputs.src_folder }}/." "${{ steps.set_paths.outputs.dest_folder }}/"  # Copia i file dalla sorgente alla destinazione
 
       - name: Commit changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$dest_folder/*" "$zip_file"
-          git commit -m "Copy files from $src_folder to $dest_folder and create backup"
+          git add "${{ steps.set_paths.outputs.dest_folder }}/*" "${{ steps.set_paths.outputs.zip_file }}"
+          git commit -m "Copy files from ${{ steps.set_paths.outputs.src_folder }} to ${{ steps.set_paths.outputs.dest_folder }}, create backup, and clear old content"
           git push
