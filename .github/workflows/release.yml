@@ -7,6 +7,10 @@ on:
         description: 'Destination Environments [''qa'', ''prod'']'
         required: true
         default: 'destination_folder'
+      installation:
+        description: 'Installation Name'
+        required: true
+        default: 'azure-1'
       tag:
         description: 'Git tag to checkout (e.g., v1.1.10)'
         required: true
@@ -48,6 +52,7 @@ jobs:
           base_path="flux-configs"  # Base path for the source and destination directories
           
           dest_env_input="${{ github.event.inputs.dest_env }}"
+          installation_name="${{ github.event.inputs.installation }}"
 
           # Mappa per determinare la cartella di origine in base alla destinazione
           declare -A folder_map
@@ -63,8 +68,8 @@ jobs:
           fi
 
           # Set full paths
-          src_folder="$base_path/$src_env_input"
-          dest_folder="$base_path/$dest_env_input"
+          src_folder="$base_path/$installation_name-$src_env_input"
+          dest_folder="$base_path/$installation_name-$dest_env_input"
 
           echo "src_folder: $src_folder"
           echo "dest_folder: $dest_folder"
@@ -83,8 +88,8 @@ jobs:
 
           # Dynamic zip file name with timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file_path="backup/${dest_env_input//\//_}"
-          zip_file_name="${src_env_input//\//_}_$timestamp.zip"
+          zip_file_path="backup/$installation_name-${dest_env_input//\//_}"
+          zip_file_name="$installation_name-${src_env_input//\//_}_$timestamp.zip"
           echo "ZIP file name: $zip_file_name"
           
           # Set output variables for use in later steps
