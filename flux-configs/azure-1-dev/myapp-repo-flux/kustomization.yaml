@@ -3,4 +3,4 @@ kind: Kustomization
 resources:
   - flux-deploy-config
 
-  TEST CHANGES for v0.0.3 azure-1
+  TEST CHANGES for v0.0.4 azure-1
