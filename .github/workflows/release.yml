@@ -1,15 +1,16 @@
-name: release
+name: Copy Files
+
 on:
   workflow_dispatch:
     inputs:
-      src_folder:
-        description: 'Folder to copy from'    # Descrizione del parametro di origine
+      dest_env:
+        description: 'Destination Environments [''qa'', ''prod'']'
         required: true
-        default: 'source_folder'             # Valore predefinito
-      dest_folder:
-        description: 'Folder to copy to'      # Descrizione del parametro di destinazione
+        default: 'destination_folder'
+      tag:
+        description: 'Git tag to checkout (e.g., v1.1.10)'
         required: true
-        default: 'destination_folder'        # Valore predefinito
+        default: 'latest'
 
 jobs:
   copy-files:
@@ -18,70 +19,111 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          # Checkout the default branch first, necessary for tag verification
+          ref: main  # Assuming `main` is the default branch, adjust if necessary
 
-      - name: Set paths
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          tag="${{ github.event.inputs.tag }}"
+          # Check if the tag exists in the repository
+          if git rev-parse "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $tag does not exist. Stopping the workflow."
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            exit 1  # Stop workflow if tag does not exist
+          fi
+
+      - name: Checkout specific tag
+        if: steps.check_tag.outputs.tag_exists == 'true'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag }}  # Only checkout if tag exists
+
+      - name: Set paths and determine source folder
         id: set_paths
         run: |
-          base_path="flux-configs"       # Percorso di base per la cartella di origine
+          base_path="flux-configs"  # Base path for the source and destination directories
           
-          # Percorsi completi unendo i percorsi base con i parametri dell'utente
-          src_folder_input="${{ github.event.inputs.src_folder }}"
-          src_folder="$base_path/$src_folder_input"
+          dest_env_input="${{ github.event.inputs.dest_env }}"
+
+          # Mappa per determinare la cartella di origine in base alla destinazione
+          declare -A folder_map
+          folder_map["qa"]="dev"
+          folder_map["prod"]="qa"
+
+          # Verifica se la destinazione è valida (qa o prod)
+          if [[ -v folder_map["$dest_env_input"] ]]; then
+            src_env_input="${folder_map[$dest_env_input]}"
+          else
+            echo "Invalid destination folder: $dest_env_input. Only 'qa' or 'prod' are allowed."
+            exit 1  # Stop the workflow if destination folder is invalid
+          fi
+
+          # Set full paths
+          src_folder="$base_path/$src_env_input"
+          dest_folder="$base_path/$dest_env_input"
+
           echo "src_folder: $src_folder"
-          dest_folder_input="${{ github.event.inputs.dest_folder }}"
-          dest_folder="$base_path/$dest_folder_input"
           echo "dest_folder: $dest_folder"
 
-          # Nome dinamico del file zip che include i percorsi e il timestamp
+          # Check if the source folder exists
+          if [ ! -d "$src_folder" ]; then
+            echo "Source folder does not exist: $src_folder. Stopping the workflow."
+            exit 1  # Stop the workflow if the source folder does not exist
+          fi
+
+          # Check if the destination folder exists
+          if [ ! -d "$dest_folder" ]; then
+            echo "Destination folder does not exist: $dest_folder. Stopping the workflow."
+            exit 1  # Stop the workflow if the destination folder does not exist
+          fi
+
+          # Dynamic zip file name with timestamp
           timestamp=$(date +%Y%m%d%H%M%S)
-          zip_file_path="backup/${dest_folder_input//\//_}"
-          zip_file_name="${src_folder_input//\//_}_$timestamp.zip"
+          zip_file_path="backup/${dest_env_input//\//_}"
+          zip_file_name="${src_env_input//\//_}_$timestamp.zip"
           echo "ZIP file name: $zip_file_name"
           
-          # Usa GITHUB_OUTPUT per impostare le variabili di output
+          # Set output variables for use in later steps
           echo "src_folder=$src_folder" >> $GITHUB_OUTPUT
           echo "dest_folder=$dest_folder" >> $GITHUB_OUTPUT
           echo "zip_file_path=$zip_file_path" >> $GITHUB_OUTPUT
           echo "zip_file_name=$zip_file_name" >> $GITHUB_OUTPUT
 
-          # TO DO
-          # STEP: CHECK PATH
-          # STEP: CHECK TAG (add input par)
-          # CHANGE src: calculate it only from dest
-          # QA from DEV
-          # PROD from QA
-          # inputs: tag, dest env, name (name for folder compising)
       - name: Zip and move destination folder content
         run: |
-          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"   # Assicurati che la cartella di destinazione esista
+          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"   # Ensure destination folder exists
 
-          # Comprimi il contenuto della cartella di destinazione solo se contiene file
+          # Compress the content of the destination folder only if it contains files
           if [ "$(ls -A ${{ steps.set_paths.outputs.dest_folder }})" ]; then
             zip -r "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.dest_folder }}"
           else
             echo "Destination folder is empty, skipping ZIP creation."
           fi
 
-          # Se il file ZIP è stato creato, spostalo nella cartella base del repository
-          mkdir -p "${{ steps.set_paths.outputs.zip_file_path }}"   # Assicurati che la cartella di destinazione esista
+          # If the ZIP file was created, move it to the base folder
+          mkdir -p "${{ steps.set_paths.outputs.zip_file_path }}"   # Ensure zip file path exists
           if [ -f "${{ steps.set_paths.outputs.zip_file_name }}" ]; then
             mv "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.zip_file_path }}"
           fi
 
       - name: Clear destination folder
         run: |
-          # Cancella il contenuto della cartella di destinazione
+          # Clear the content of the destination folder
           rm -rf "${{ steps.set_paths.outputs.dest_folder }}/*"
 
       - name: Copy files
         run: |
-          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"                # Crea la cartella di destinazione se non esiste
-          cp -r "${{ steps.set_paths.outputs.src_folder }}/." "${{ steps.set_paths.outputs.dest_folder }}/"  # Copia i file dalla sorgente alla destinazione
+          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"                # Ensure the destination folder exists
+          cp -r "${{ steps.set_paths.outputs.src_folder }}/." "${{ steps.set_paths.outputs.dest_folder }}/"  # Copy the files from source to destination
 
       - name: Check if ZIP file exists
         run: |
           if [ -f "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}" ]; then
-            echo "ZIP file exists: "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}""
+            echo "ZIP file exists: "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}"" 
           else
             echo "ZIP file not found!"
             exit 1
