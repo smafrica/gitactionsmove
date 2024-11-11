@@ -100,8 +100,6 @@ jobs:
 
       - name: Zip and move destination folder content
         run: |
-          mkdir -p "${{ steps.set_paths.outputs.dest_folder }}"   # Ensure destination folder exists
-
           # Compress the content of the destination folder only if it contains files
           if [ "$(ls -A ${{ steps.set_paths.outputs.dest_folder }})" ]; then
             zip -r "${{ steps.set_paths.outputs.zip_file_name }}" "${{ steps.set_paths.outputs.dest_folder }}"
