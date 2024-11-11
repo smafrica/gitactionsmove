@@ -129,16 +129,18 @@ jobs:
             exit 1
           fi
 
-      - name: Pull latest changes and rebase
-        run: |
-          git fetch origin main
-          git rebase origin/main        
-
-      - name: Commit changes
+      - name: Commit changes before rebase
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add "${{ steps.set_paths.outputs.dest_folder }}/*" "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}"
           git commit -m "Copy files from ${{ steps.set_paths.outputs.src_folder }} to ${{ steps.set_paths.outputs.dest_folder }}, create backup, and clear old content"
+
+      - name: Pull latest changes and rebase
+        run: |
+          git fetch origin main
+          git rebase origin/main        
+
+      - name: Push changes
+        run: |
           git push origin HEAD:main  # Pushes detached HEAD changes to `main`
-        
