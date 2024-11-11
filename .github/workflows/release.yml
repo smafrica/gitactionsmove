@@ -1,4 +1,4 @@
-name: Copy Files
+name: K8S Release
 
 on:
   workflow_dispatch:
