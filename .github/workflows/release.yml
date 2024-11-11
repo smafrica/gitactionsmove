@@ -10,7 +10,7 @@ on:
       tag:
         description: 'Git tag to checkout (e.g., v1.1.10)'
         required: true
-        default: 'latest'
+        default: 'v0.0.1'
 
 jobs:
   copy-files:
@@ -135,4 +135,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add "${{ steps.set_paths.outputs.dest_folder }}/*" "${{ steps.set_paths.outputs.zip_file_path }}/${{ steps.set_paths.outputs.zip_file_name }}"
           git commit -m "Copy files from ${{ steps.set_paths.outputs.src_folder }} to ${{ steps.set_paths.outputs.dest_folder }}, create backup, and clear old content"
-          git push
+          git push origin HEAD:main  # Pushes detached HEAD changes to `main`
+        
