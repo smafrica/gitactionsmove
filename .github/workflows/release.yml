@@ -17,11 +17,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository and fetch all tags
         uses: actions/checkout@v3
         with:
-          # Checkout the default branch first, necessary for tag verification
-          ref: main  # Assuming `main` is the default branch, adjust if necessary
+          fetch-depth: 0  # Fetch all history to ensure tags are included
+          ref: main  # Checkout the main branch (or your default branch)
 
       - name: Check if tag exists
         id: check_tag
